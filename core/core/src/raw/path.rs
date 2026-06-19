@@ -18,13 +18,13 @@
 use crate::*;
 use std::hash::{BuildHasher, Hasher};
 
-/// build_abs_path will build an absolute path with root.
+/// Build an absolute path by joining root and path, stripping the leading `/` from root.
 ///
 /// # Rules
 ///
 /// - Input root MUST be the format like `/abc/def/`
 /// - Output will be the format like `path/to/root/path`.
-pub fn build_abs_path(root: &str, path: &str) -> String {
+pub fn build_absolute_path(root: &str, path: &str) -> String {
     debug_assert!(root.starts_with('/'), "root must start with /");
     debug_assert!(root.ends_with('/'), "root must end with /");
 
@@ -38,13 +38,20 @@ pub fn build_abs_path(root: &str, path: &str) -> String {
     }
 }
 
-/// build_rooted_abs_path will build an absolute path with root.
+/// Deprecated: use [`build_absolute_path`] instead.
+#[deprecated(note = "use build_absolute_path instead")]
+#[inline]
+pub fn build_abs_path(root: &str, path: &str) -> String {
+    build_absolute_path(root, path)
+}
+
+/// Build a rooted absolute path by joining root and path, preserving the leading `/`.
 ///
 /// # Rules
 ///
 /// - Input root MUST be the format like `/abc/def/`
 /// - Output will be the format like `/path/to/root/path`.
-pub fn build_rooted_abs_path(root: &str, path: &str) -> String {
+pub fn build_rooted_absolute_path(root: &str, path: &str) -> String {
     debug_assert!(root.starts_with('/'), "root must start with /");
     debug_assert!(root.ends_with('/'), "root must end with /");
 
@@ -58,14 +65,21 @@ pub fn build_rooted_abs_path(root: &str, path: &str) -> String {
     }
 }
 
-/// build_rel_path will build a relative path towards root.
+/// Deprecated: use [`build_rooted_absolute_path`] instead.
+#[deprecated(note = "use build_rooted_absolute_path instead")]
+#[inline]
+pub fn build_rooted_abs_path(root: &str, path: &str) -> String {
+    build_rooted_absolute_path(root, path)
+}
+
+/// Build a relative path from a rooted absolute path by stripping the root prefix.
 ///
 /// # Rules
 ///
 /// - Input root MUST be the format like `/abc/def/`
 /// - Input path MUST start with root like `/abc/def/path/to/file`
 /// - Output will be the format like `path/to/file`.
-pub fn build_rel_path(root: &str, path: &str) -> String {
+pub fn build_relative_path(root: &str, path: &str) -> String {
     debug_assert!(root != path, "get rel path with root is invalid");
 
     if path.starts_with('/') {
@@ -83,21 +97,32 @@ pub fn build_rel_path(root: &str, path: &str) -> String {
     }
 }
 
-/// Make sure all operation are constructed by normalized path:
+/// Deprecated: use [`build_relative_path`] instead.
+#[deprecated(note = "use build_relative_path instead")]
+#[inline]
+pub fn build_rel_path(root: &str, path: &str) -> String {
+    build_relative_path(root, path)
+}
+
+/// Normalize an OpenDAL path for uniform internal representation.
 ///
-/// - Path endswith `/` means it's a dir path.
+/// - Path ending with `/` means it's a dir path.
 /// - Otherwise, it's a file path.
 ///
 /// # Normalize Rules
 ///
-/// - All whitespace will be trimmed: ` abc/def ` => `abc/def`
-/// - All leading / will be trimmed: `///abc` => `abc`
-/// - Internal // will be replaced by /: `abc///def` => `abc/def`
-/// - Empty path will be `/`: `` => `/`
+/// - Leading `/` is stripped: `/abc` => `abc`
+/// - Internal `//` is collapsed: `abc///def` => `abc/def`
+/// - `.` segments are removed: `./a/./b` => `a/b`, `./` => `/`
+/// - Trailing `/` is preserved: `abc/` => `abc/`
+/// - Empty path becomes `/`: `` => `/`
+///
+/// Content within path components (including whitespace) is preserved.
+/// This aligns with POSIX, URI, and object-store conventions where
+/// whitespace is significant content — `"file"` and `"file "` are
+/// distinct objects.
 pub fn normalize_path(path: &str) -> String {
-    // - all whitespace has been trimmed.
-    // - all leading `/` has been trimmed.
-    let path = path.trim().trim_start_matches('/');
+    let path = path.trim_start_matches('/');
 
     // Fast line for empty path.
     if path.is_empty() {
@@ -108,11 +133,14 @@ pub fn normalize_path(path: &str) -> String {
 
     let mut p = path
         .split('/')
-        .filter(|v| !v.is_empty())
+        .filter(|v| !v.is_empty() && *v != ".")
         .collect::<Vec<&str>>()
         .join("/");
 
-    // Append trailing back if input path is endswith `/`.
+    if p.is_empty() {
+        return "/".to_string();
+    }
+
     if has_trailing {
         p.push('/');
     }
@@ -120,22 +148,22 @@ pub fn normalize_path(path: &str) -> String {
     p
 }
 
-/// Make sure root is normalized to style like `/abc/def/`.
+/// Normalize a root path to the style `/abc/def/`.
 ///
 /// # Normalize Rules
 ///
-/// - All whitespace will be trimmed: ` abc/def ` => `abc/def`
-/// - All leading / will be trimmed: `///abc` => `abc`
-/// - Internal // will be replaced by /: `abc///def` => `abc/def`
-/// - Empty path will be `/`: `` => `/`
-/// - Add leading `/` if not starts with: `abc/` => `/abc/`
-/// - Add trailing `/` if not ends with: `/abc` => `/abc/`
+/// - Leading `/` is stripped then re-added: `///abc` => `/abc/`
+/// - Internal `//` is collapsed: `abc///def` => `/abc/def/`
+/// - `.` segments are removed: `./data/./root/` => `/data/root/`
+/// - Leading `/` is ensured: `abc/` => `/abc/`
+/// - Trailing `/` is ensured: `/abc` => `/abc/`
+/// - Empty path becomes `/`: `` => `/`
 ///
-/// Finally, we will get path like `/path/to/root/`.
+/// Content within path components (including whitespace) is preserved.
 pub fn normalize_root(v: &str) -> String {
     let mut v = v
         .split('/')
-        .filter(|v| !v.is_empty())
+        .filter(|v| !v.is_empty() && *v != ".")
         .collect::<Vec<&str>>()
         .join("/");
     if !v.starts_with('/') {
@@ -284,7 +312,14 @@ mod tests {
             ("abs dir path with extra /", "///abc/def/", "abc/def/"),
             ("file path contains ///", "abc///def", "abc/def"),
             ("dir path contains ///", "abc///def///", "abc/def/"),
-            ("file with whitespace", "abc/def   ", "abc/def"),
+            ("file with trailing whitespace", "abc/def   ", "abc/def   "),
+            ("file with leading whitespace", "  abc/def", "  abc/def"),
+            ("whitespace preserved", " a/b ", " a/b "),
+            ("dot segment removed", "./a/./b", "a/b"),
+            ("dot dir becomes root", "./", "/"),
+            ("only dot", ".", "/"),
+            ("dot in middle", "a/./b/./c", "a/b/c"),
+            ("dot with trailing slash", "a/./b/", "a/b/"),
         ];
 
         for (name, input, expect) in cases {
@@ -303,6 +338,9 @@ mod tests {
             ("abs file path with extra /", "///abc/def", "/abc/def/"),
             ("abs dir path with extra /", "///abc/def/", "/abc/def/"),
             ("dir path contains ///", "abc///def///", "/abc/def/"),
+            ("dot segment removed", "./data/./root/", "/data/root/"),
+            ("only dot", ".", "/"),
+            ("dot with path", "./abc", "/abc/"),
         ];
 
         for (name, input, expect) in cases {
@@ -346,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_abs_path() {
+    fn test_build_absolute_path() {
         let cases = vec![
             ("input abs file", "/abc/", "/", "abc/"),
             ("input dir", "/abc/", "def/", "abc/def/"),
@@ -358,13 +396,13 @@ mod tests {
         ];
 
         for (name, root, input, expect) in cases {
-            let actual = build_abs_path(root, input);
+            let actual = build_absolute_path(root, input);
             assert_eq!(actual, expect, "{name}")
         }
     }
 
     #[test]
-    fn test_build_rooted_abs_path() {
+    fn test_build_rooted_absolute_path() {
         let cases = vec![
             ("input abs file", "/abc/", "/", "/abc/"),
             ("input dir", "/abc/", "def/", "/abc/def/"),
@@ -375,13 +413,13 @@ mod tests {
         ];
 
         for (name, root, input, expect) in cases {
-            let actual = build_rooted_abs_path(root, input);
+            let actual = build_rooted_absolute_path(root, input);
             assert_eq!(actual, expect, "{name}")
         }
     }
 
     #[test]
-    fn test_build_rel_path() {
+    fn test_build_relative_path() {
         let cases = vec![
             ("input abs file", "/abc/", "/abc/def", "def"),
             ("input dir", "/abc/", "/abc/def/", "def/"),
@@ -391,7 +429,7 @@ mod tests {
         ];
 
         for (name, root, input, expect) in cases {
-            let actual = build_rel_path(root, input);
+            let actual = build_relative_path(root, input);
             assert_eq!(actual, expect, "{name}")
         }
     }
