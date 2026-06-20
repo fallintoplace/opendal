@@ -500,6 +500,9 @@ jobs:
           pattern: *-documentation
           path: website/static/docs/
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Organize documentations
         run: |
           # Useful for debugging
@@ -531,9 +534,6 @@ jobs:
 
           # Useful for debugging
           ls -al static/docs/
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Cache website build artifacts
         uses: actions/cache@v5
