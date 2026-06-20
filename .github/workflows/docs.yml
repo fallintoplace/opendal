@@ -497,7 +497,7 @@ jobs:
       - name: Download bindings and integrations documentations
         uses: actions/download-artifact@v8
         with:
-          pattern: (binding|integration)-*-documentation
+          pattern: *-documentation
           path: website/static/docs/
 
       - name: Organize documentations
@@ -506,20 +506,28 @@ jobs:
           ls -al static/docs/
 
           # Becasue `website/static/docs/` maps to `/docs/` on website, we want to organize paths
-          mv static/docs/rust-documentation/* static/docs/rust/
-          mv static/docs/binding-java-documentation/ static/docs/bindings/java/
-          mv static/docs/binding-nodejs-documentation/ static/docs/bindings/nodejs/
-          mv static/docs/binding-python-documentation/ static/docs/bindings/python/
-          mv static/docs/binding-ruby-documentation/ static/docs/bindings/ruby/
-          mv static/docs/binding-c-documentation/ static/docs/bindings/c/
-          mv static/docs/binding-lua-documentation/ static/docs/bindings/lua/
-          mv static/docs/binding-haskell-documentation/ static/docs/bindings/haskell/
-          mv static/docs/binding-cpp-documentation/ static/docs/bindings/cpp/
-          mv static/docs/binding-ocaml-documentation/ static/docs/bindings/oc
-          mv static/docs/integration-object-store-opendal-documentation/ static/docs/integrations/object_store/
-          mv static/docs/integration-dav-server-opendalfs-documentation/ static/docs/integrations/dav-server/
-          mv static/docs/integration-unftp-sbe-opendal-documentation/ static/docs/integrations/unftp-sbe/
-          mv static/docs/integration-object-parquet-documentation/ static/docs/integrations/parquet/
+          mv static/docs/rust-documentation/ static/docs/rust/
+          mv static/docs/binding-java-documentation/ static/docs/java/
+          mv static/docs/binding-nodejs-documentation/ static/docs/nodejs/
+          mv static/docs/binding-python-documentation/ static/docs/python/
+          mv static/docs/binding-ruby-documentation/ static/docs/ruby/
+          mv static/docs/binding-c-documentation/ static/docs/c/
+          mv static/docs/binding-lua-documentation/ static/docs/lua/
+          mv static/docs/binding-haskell-documentation/ static/docs/haskell/
+          mv static/docs/binding-cpp-documentation/ static/docs/cpp/
+          mv static/docs/binding-ocaml-documentation/ static/docs/ocaml/
+
+          mkdir -p static/docs/integrations/object_store/target
+          mv static/docs/integration-object-store-opendal-documentation/ static/docs/integrations/object_store/target/doc
+
+          mkdir -p static/docs/integrations/dav-server/target
+          mv static/docs/integration-dav-server-opendalfs-documentation/ static/docs/integrations/dav-server/target/doc
+
+          mkdir -p static/docs/integrations/unftp-sbe/target
+          mv static/docs/integration-unftp-sbe-opendal-documentation/ static/docs/integrations/unftp-sbe/target/doc
+
+          mkdir -p static/docs/integrations/parquet/target
+          mv static/docs/integration-object-parquet-documentation/ static/docs/integrations/parquet/target/doc
 
           # Useful for debugging
           ls -al static/docs/
